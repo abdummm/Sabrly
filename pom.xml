@@ -13,7 +13,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.9.2</junit.version>
-        <jpro.version>2025.3.2</jpro.version>
     </properties>
 
     <dependencies>
