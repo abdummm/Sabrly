@@ -168,7 +168,7 @@ public class HelloApplication extends Application {
     private final static String clientId_live = Quran_api_secrets.clientId_live;
     private final static String clientSecret_live = Quran_api_secrets.clientSecret_live;
     private final static Live_mode live_or_pre_live_quran_api = Live_mode.LIVE;
-    private final static Running_mode running_mode = Running_mode.DEBUG;
+    private final static Running_mode running_mode = Running_mode.PRODUCTION;
     private final static int max_rectangle_width = 16384 /*16384*/;
 
     private final static int image_view_in_tile_pane_width = 90;
@@ -8824,7 +8824,7 @@ public class HelloApplication extends Application {
         send_analytics_event("language_expanded", event_hashmap);
     }
 
-    private void send_render_analytics_event(HelloController helloController, String file_name, String file_location) {
+    private void send_render_analytics_event(HelloController helloController) {
         if (running_mode == Running_mode.DEBUG) {
             return;
         }
@@ -9236,6 +9236,7 @@ public class HelloApplication extends Application {
         render_button.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent actionEvent) {
+                send_analytics_event("analytics_button_clicked");
                 if (!is_this_a_valid_file_name(file_name_text_field.getText())) {
                     showToast(render_video_dialogue_stage, "File name not valid", 3000);
                     return;
@@ -9249,6 +9250,7 @@ public class HelloApplication extends Application {
                     return;
                 }
                 save_the_name_and_location(file_name_text_field.getText(), file_location_text_field.getText());
+                send_render_analytics_event(helloController);
                 start_the_rendering_engine(helloController, file_name_text_field.getText(), file_location_text_field.getText());
             }
         });
