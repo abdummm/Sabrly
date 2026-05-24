@@ -55,6 +55,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.*;
 import javafx.scene.text.Font;
+import javafx.scene.transform.Affine;
 import javafx.stage.*;
 
 import java.awt.*;
@@ -7050,11 +7051,21 @@ public class HelloApplication extends Application {
         GraphicsContext gc = helloController.canvas_displaying_the_verses.getGraphicsContext2D();
         double width = text_box_info.getText_box_width();
         double height = text_box_info.getText_box_height();
+        double rectangle_width = get_stroke_width_for_canvas(gc,5);
+        gc.save();
+        gc.setImageSmoothing(false);
         gc.setFill(javafx.scene.paint.Color.TRANSPARENT);
         gc.setStroke(javafx.scene.paint.Color.RED);
-        gc.setLineWidth(5);
+        gc.setLineWidth(rectangle_width);
         gc.fillRect(point2D_of_the_text.getX() - width / 2, point2D_of_the_text.getY() - height / 2, width, height);
         gc.strokeRect(point2D_of_the_text.getX() - width / 2, point2D_of_the_text.getY() - height / 2, width, height);
+        gc.restore();
+    }
+
+    private double get_stroke_width_for_canvas(GraphicsContext gc, double logical_pixels) {
+        Affine t = gc.getTransform();
+        double scale = Math.sqrt(t.getMxx() * t.getMxx() + t.getMyx() * t.getMyx());
+        return logical_pixels / scale;
     }
 
     private void place_the_x_and_y_text_positions(Canvas canvas, Text_item text_item) {
