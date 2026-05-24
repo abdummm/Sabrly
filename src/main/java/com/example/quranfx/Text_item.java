@@ -10,7 +10,7 @@ import javafx.scene.paint.Color;
 import java.util.ArrayList;
 
 public class Text_item {
-    private static final float default_font_size = 36;
+    private static final float default_font_size = 100;
     private String original_verse_text;
     private String verse_text;
     private String adjusted_verse_text;
