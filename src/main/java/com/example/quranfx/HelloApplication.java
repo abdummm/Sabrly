@@ -227,6 +227,7 @@ public class HelloApplication extends Application {
         set_up_icon_for_settings_mark_button_on_loading_screen(helloController);
         set_the_cursor_for_question_mark_button_on_loading_screen(helloController);
         listen_to_settings_button_clicked_loading_screen(helloController);
+        add_app_icon_to_title_bar(stage);
     }
 
 
@@ -9498,5 +9499,11 @@ public class HelloApplication extends Application {
             prefs.put("sabrly_render_file_location", file_location);
         }
         return file_location;
+    }
+
+    private void add_app_icon_to_title_bar(Stage stage){
+        if(!is_this_a_mac_device()){
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("/Sabrly_mini.png")));
+        }
     }
 }
