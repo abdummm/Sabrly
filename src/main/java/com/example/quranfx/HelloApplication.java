@@ -7052,7 +7052,7 @@ public class HelloApplication extends Application {
         double height = text_box_info.getText_box_height();
         gc.setFill(javafx.scene.paint.Color.TRANSPARENT);
         gc.setStroke(javafx.scene.paint.Color.RED);
-        gc.setLineWidth(2);
+        gc.setLineWidth(5);
         gc.fillRect(point2D_of_the_text.getX() - width / 2, point2D_of_the_text.getY() - height / 2, width, height);
         gc.strokeRect(point2D_of_the_text.getX() - width / 2, point2D_of_the_text.getY() - height / 2, width, height);
     }
