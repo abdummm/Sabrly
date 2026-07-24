@@ -6974,22 +6974,28 @@ public class HelloApplication extends Application {
     }
 
     private Image convertSkijaToFx(Surface surface) {
-        io.github.humbleui.skija.Image skImage = surface.makeImageSnapshot();
-        Bitmap bitmap = Bitmap.makeFromImage(skImage);
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        ByteBuffer buffer = bitmap.peekPixels().getBuffer();
-        if (cached_text_image == null ||
-                cached_text_image.getWidth() != width ||
-                cached_text_image.getHeight() != height) {
-            cached_text_image = new WritableImage(width, height);
+        try (io.github.humbleui.skija.Image skImage = surface.makeImageSnapshot();
+             Bitmap bitmap = Bitmap.makeFromImage(skImage)) {
+
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+
+            byte[] pixels = bitmap.readPixels(); // copies into a heap byte[]
+
+            if (cached_text_image == null ||
+                    cached_text_image.getWidth() != width ||
+                    cached_text_image.getHeight() != height) {
+                cached_text_image = new WritableImage(width, height);
+            }
+
+            PixelWriter pixelWriter = cached_text_image.getPixelWriter();
+            pixelWriter.setPixels(0, 0, width, height,
+                    PixelFormat.getByteBgraPreInstance(),
+                    pixels, 0,
+                    width * 4);
+
+            return cached_text_image;
         }
-        PixelWriter pixelWriter = cached_text_image.getPixelWriter();
-        pixelWriter.setPixels(0, 0, width, height,
-                PixelFormat.getByteBgraPreInstance(),
-                buffer,
-                width * 4); // stride
-        return cached_text_image;
     }
 
     private double return_the_text_opacity(HelloController helloController, Text_item text_item, long x_pos_time) {
@@ -9500,7 +9506,6 @@ public class HelloApplication extends Application {
         }
         return file_location;
     }
-
     private void add_app_icon_to_title_bar(Stage stage){
         if(!is_this_a_mac_device()){
             stage.getIcons().add(new Image(getClass().getResourceAsStream("/Sabrly_mini.png")));
