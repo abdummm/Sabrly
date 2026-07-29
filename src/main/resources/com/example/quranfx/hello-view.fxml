@@ -27,7 +27,7 @@
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.control.ProgressBar?>
-<StackPane prefHeight="365.0" prefWidth="366.0" xmlns="http://javafx.com/javafx/23.0.1"
+<StackPane prefHeight="365.0" prefWidth="366.0" xmlns="http://javafx.com/javafx/21.0.11"
            xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.quranfx.HelloController"
            style="-fx-background-color: #FFFFFF;" fx:id="parent_stack_pane">
     <StackPane fx:id="show_logo_loading_screen">
@@ -40,7 +40,7 @@
             <ProgressBar fx:id="video_render_progress_bar" maxHeight="3" prefHeight="3" maxWidth="150" prefWidth="150"
                           stylesheets="@progress_bar_style.css" progress="0"/>
 
-            <Label fx:id="label_for_percentage_rendering_engine" textFill="#B49552" text="0%">
+            <Label fx:id="label_for_percentage_rendering_engine" textFill="#B49552" text="0%" textAlignment="CENTER">
                 <VBox.margin>
                     <Insets top="10.0"/>
                 </VBox.margin>
