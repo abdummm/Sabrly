@@ -9,6 +9,7 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXSnackbar;
 import io.github.humbleui.skija.*;
 import io.github.humbleui.skija.Paint;
+import javafx.animation.Animation;
 import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -22,6 +23,8 @@ import javafx.beans.value.ObservableDoubleValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -80,6 +83,7 @@ import java.text.Normalizer;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -7058,7 +7062,7 @@ public class HelloApplication extends Application {
         GraphicsContext gc = helloController.canvas_displaying_the_verses.getGraphicsContext2D();
         double width = text_box_info.getText_box_width();
         double height = text_box_info.getText_box_height();
-        double rectangle_width = get_stroke_width_for_canvas(gc,5);
+        double rectangle_width = get_stroke_width_for_canvas(gc, 5);
         gc.save();
         gc.setImageSmoothing(false);
         gc.setFill(javafx.scene.paint.Color.TRANSPARENT);
@@ -8314,13 +8318,17 @@ public class HelloApplication extends Application {
 
     private void loop_through_all_verses_and_update(HelloController helloController, ListView<Language_info> all_translations) {
         ArrayList<Language_info> array_list_of_language_info_with_the_text_box_showing = new ArrayList<>();
+        boolean is_at_least_one_language_selected = false;
         for (Language_info language_info : all_translations.getItems()) {
             if (language_info.isVisible_check_mark_checked()) {
-                place_the_canvas_text(helloController);
+                is_at_least_one_language_selected = true;
                 if (language_info.isText_box_showing()) {
                     array_list_of_language_info_with_the_text_box_showing.add(language_info);
                 }
             }
+        }
+        if (is_at_least_one_language_selected) {
+            place_the_canvas_text(helloController);
         }
         if (!array_list_of_language_info_with_the_text_box_showing.isEmpty()) {
             place_the_box_surrounding_the_text(helloController, array_list_of_language_info_with_the_text_box_showing.getLast());
@@ -8864,19 +8872,19 @@ public class HelloApplication extends Application {
         event_hashmap.put("surat_name", surat_name_selected);
         ObservableList<Language_info> all_the_languages = helloController.list_view_with_all_of_the_languages.getItems();
         Language_info arabic_language = null;
-        for(Language_info language_info : all_the_languages) {
-            if(language_info.getLanguage_name().equals("arabic")){
+        for (Language_info language_info : all_the_languages) {
+            if (language_info.getLanguage_name().equals("arabic")) {
                 arabic_language = language_info;
             }
-            if(language_info.isVisible_check_mark_checked()){
+            if (language_info.isVisible_check_mark_checked()) {
                 HashMap<String, Object> language_hashmap = new HashMap<>();
                 language_hashmap.put("language", language_info.getLanguage_name());
-                send_analytics_event("language_selected_render",language_hashmap);
+                send_analytics_event("language_selected_render", language_hashmap);
             }
         }
-        if(arabic_language != null){
+        if (arabic_language != null) {
             StringBuilder arabic_verses_string_builder = new StringBuilder();
-            for(Text_item text_item : arabic_language.getArrayList_of_all_of_the_translations()){
+            for (Text_item text_item : arabic_language.getArrayList_of_all_of_the_translations()) {
                 arabic_verses_string_builder.append(text_item).append(' ');
             }
             int arabic_letters = countArabicLetters(arabic_verses_string_builder.toString());
@@ -9319,6 +9327,7 @@ public class HelloApplication extends Application {
         final int frames_per_second = 30;
         FFmpegFrameRecorder recorder = new FFmpegFrameRecorder(file_path.toString().concat(".mp4"), Global_default_values.translation_canvas_width, Global_default_values.translation_canvas_height);
         FFmpegFrameGrabber audioGrabber;
+        String thank_you_message = "\nVideo render complete.\nThank you for using Sabrly!";
         if (sound_mode == Sound_mode.CHOSEN) {
             audioGrabber = new FFmpegFrameGrabber(base_path.resolve("temp/sound/combined.wav").toString());
         } else { //sound_mode == Sound_mode.UPLOADED
@@ -9341,51 +9350,48 @@ public class HelloApplication extends Application {
 
         Canvas canvas_to_be_used_for_buffer_image = new Canvas(Global_default_values.translation_canvas_width, Global_default_values.translation_canvas_height);
 
-        long number_of_frames = (get_duration() * frames_per_second) / 1_000_000_000L;
-        BlockingQueue<ArrayList<BufferedImage>> buffered_image_blocking_queue = new LinkedBlockingQueue<>();
+        int number_of_frames = (int) ((get_duration() * frames_per_second) / TimeUnit.SECONDS.toNanos(1));
+        BlockingQueue<BufferedImage> buffered_image_blocking_queue = new LinkedBlockingQueue<>();
         AtomicInteger current_frame_number = new AtomicInteger(0);
+        AtomicBoolean render_engine_currently_processing_a_frame = new AtomicBoolean(false);
         Timeline timeline = new Timeline();
         KeyFrame kf = new KeyFrame(Duration.seconds(0),
                 event -> {
-                    if (current_frame_number.get() >= number_of_frames) {
-                        timeline.stop();
-                        return;
-                    }
-                    long time_in_nanoseconds = (current_frame_number.get() * 1_000_000_000L) / frames_per_second;
-                    ArrayList<BufferedImage> buffered_image_array_list = new ArrayList<>();
-                    for (Language_info language_info : helloController.list_view_with_all_of_the_languages.getItems()) {
-                        if (language_info.isVisible_check_mark_checked()) {
-                            place_the_canvas_text(helloController, canvas_to_be_used_for_buffer_image, time_in_nanoseconds);
-                            buffered_image_array_list.add(get_buffered_image_from_canvas(canvas_to_be_used_for_buffer_image));
+                    if (render_engine_currently_processing_a_frame.compareAndExchange(false, true)) {
+                        if (current_frame_number.get() >= number_of_frames) {
+                            timeline.stop();
+                            return;
                         }
+                        long time_in_nanoseconds = (current_frame_number.get() * TimeUnit.SECONDS.toNanos(1)) / frames_per_second;
+                        place_the_canvas_text(helloController, canvas_to_be_used_for_buffer_image, time_in_nanoseconds);
+                        BufferedImage buffered_canvas = get_buffered_image_from_canvas(canvas_to_be_used_for_buffer_image);
+                        try {
+                            buffered_image_blocking_queue.put(buffered_canvas);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        current_frame_number.incrementAndGet();
+                        render_engine_currently_processing_a_frame.set(false);
                     }
-                    try {
-                        buffered_image_blocking_queue.put(buffered_image_array_list);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                    current_frame_number.incrementAndGet();
                 });
-        timeline.getKeyFrames().addAll(kf, new KeyFrame(Duration.millis(100)));
-        timeline.setCycleCount(Timeline.INDEFINITE); // run forever
+        timeline.getKeyFrames().addAll(kf, new KeyFrame(Duration.millis(50)));
+        timeline.setCycleCount(Animation.INDEFINITE);
         timeline.play();
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(new Runnable() {
+        Task task = new Task() {
             @Override
-            public void run() {
+            protected Object call() {
                 try {
                     audioGrabber.start();
                     recorder.start();
                     Java2DFrameConverter converter = new Java2DFrameConverter();
                     Frame nextAudioFrame = audioGrabber.grabSamples();
                     int processed_frame = 0;
-                    while (current_frame_number.get() < number_of_frames) {
-                        if (buffered_image_blocking_queue.isEmpty()) {
-                            continue;
-                        }
+                    while (processed_frame < number_of_frames) {
+                        BufferedImage buffered_images_for_this_frame = buffered_image_blocking_queue.take();
                         if (processed_frame % (frames_per_second / 10) == 0) {
-                            final int finalProcessed_frame = processed_frame;
+                            int finalProcessed_frame = processed_frame;
                             Platform.runLater(new Runnable() {
                                 @Override
                                 public void run() {
@@ -9399,7 +9405,7 @@ public class HelloApplication extends Application {
                         }
                         BufferedImage root_buffered_image = new BufferedImage(Global_default_values.translation_canvas_width, Global_default_values.translation_canvas_height, BufferedImage.TYPE_INT_ARGB);
                         long time_in_nanoseconds = (processed_frame * 1_000_000_000L) / frames_per_second;
-                        long time_in_milliseconds = TimeUnit.NANOSECONDS.toMillis(time_in_nanoseconds);
+                        //long time_in_milliseconds = TimeUnit.NANOSECONDS.toMillis(time_in_nanoseconds);
                         long time_in_microseconds = TimeUnit.NANOSECONDS.toMicros(time_in_nanoseconds);
                         String image_id = return_the_image_on_click(helloController.time_line_pane, nanoseconds_to_pixels(time_line_pane_data, time_in_nanoseconds) + time_line_pane_data.getTime_line_base_line());
                         if (!image_id.equals(no_image_found)) {
@@ -9418,10 +9424,7 @@ public class HelloApplication extends Application {
                                 add_buffer_image_to_root_buffer_image(root_buffered_image, blacked_out_image_four_k, (float) opacity);
                             }
                         }
-                        ArrayList<BufferedImage> buffered_images_for_this_frame = buffered_image_blocking_queue.take();
-                        for (int i = 0; i < buffered_images_for_this_frame.size(); i++) {
-                            add_buffer_image_to_root_buffer_image(root_buffered_image, buffered_images_for_this_frame.get(i));
-                        }
+                        add_buffer_image_to_root_buffer_image(root_buffered_image, buffered_images_for_this_frame);
                         BufferedImage bgr_buffered_image = new BufferedImage(root_buffered_image.getWidth(), root_buffered_image.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
                         add_buffer_image_to_root_buffer_image(bgr_buffered_image, root_buffered_image);
                         Frame current_frame = converter.convert(bgr_buffered_image);
@@ -9437,13 +9440,6 @@ public class HelloApplication extends Application {
                         recorder.record(nextAudioFrame);
                         nextAudioFrame = audioGrabber.grabSamples();
                     }
-                    Platform.runLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            helloController.video_render_progress_bar.setProgress(1.0);
-                            helloController.label_for_percentage_rendering_engine.setText("100%");
-                        }
-                    });
                     audioGrabber.stop();
                     recorder.stop();
                     audioGrabber.release();
@@ -9458,8 +9454,25 @@ public class HelloApplication extends Application {
                         }
                     });
                 }
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
+            @Override
+            public void handle(WorkerStateEvent event) {
+                helloController.label_for_percentage_rendering_engine.setText(thank_you_message);
             }
         });
+        main_stage.focusedProperty().addListener(new ChangeListener<Boolean>() {
+            @Override
+            public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+                if(task.isDone()){
+                    helloController.label_for_percentage_rendering_engine.setText(thank_you_message);
+                }
+            }
+        });
+        executor.submit(task);
         executor.shutdown();
     }
 
@@ -9469,11 +9482,13 @@ public class HelloApplication extends Application {
         return image_to_buffered_image(canvas.snapshot(params, null));
     }
 
-    private void add_buffer_image_to_root_buffer_image(BufferedImage original_buffered_image, BufferedImage buffered_image_to_be_added) {
+    private void add_buffer_image_to_root_buffer_image(BufferedImage original_buffered_image, BufferedImage
+            buffered_image_to_be_added) {
         add_buffer_image_to_root_buffer_image(original_buffered_image, buffered_image_to_be_added, 1F);
     }
 
-    private void add_buffer_image_to_root_buffer_image(BufferedImage original_buffered_image, BufferedImage buffered_image_to_be_added, float opacity) {
+    private void add_buffer_image_to_root_buffer_image(BufferedImage original_buffered_image, BufferedImage
+            buffered_image_to_be_added, float opacity) {
         Graphics2D graphics2D = original_buffered_image.createGraphics();
         graphics2D.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
         graphics2D.drawImage(buffered_image_to_be_added, 0, 0, Global_default_values.translation_canvas_width, Global_default_values.translation_canvas_height, null);
@@ -9506,8 +9521,9 @@ public class HelloApplication extends Application {
         }
         return file_location;
     }
-    private void add_app_icon_to_title_bar(Stage stage){
-        if(!is_this_a_mac_device()){
+
+    private void add_app_icon_to_title_bar(Stage stage) {
+        if (!is_this_a_mac_device()) {
             stage.getIcons().add(new Image(getClass().getResourceAsStream("/Sabrly_mini.png")));
         }
     }
